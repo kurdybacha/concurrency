@@ -1,0 +1,3 @@
+[submodule "notes/reveal.js"]
+	path = notes/reveal.js
+	url = https://github.com/hakimel/reveal.js

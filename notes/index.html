@@ -1,0 +1,619 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+        <title>reveal.js</title>
+
+        <link rel="stylesheet" href="reveal.js/css/reveal.css">
+        <link rel="stylesheet" href="reveal.js/css/theme/simple.css">
+
+        <link rel="stylesheet" href="custom.css">
+
+        <!-- Theme used for syntax highlighting of code -->
+        <link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+        <!-- Printing and PDF exports -->
+        <script>
+            var link = document.createElement( 'link' );
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+            document.getElementsByTagName( 'head' )[0].appendChild( link );
+        </script>
+    </head>
+    <body>
+        <div class="reveal">
+            <div class="slides">
+
+                <section>
+                    <h2>Concurrency with C++</h2>
+
+                    <p></p>
+                        <!-- A paragraph with some text and a [link](http://hakim.se). -->
+                    <aside class="notes" data-markdown>
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Ways we learn about concurrency</p>
+                    <table width="100%">
+                        <tr>
+                            <!-- <td><img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/An_illustration_of_the_dining_philosophers_problem.png"></td> -->
+                            <td><img src="https://cdn-images-1.medium.com/max/1600/1*3fzO1UsqvLMyQ6A5M6pjrA.png"></td>
+                            <td><img src="images/railways_in_andes.png"></td>
+                        </tr>
+                    </table>
+                </section>
+
+                <section>
+                    <p>Concurrency - how we see it</p>
+                    <span>
+                        <ul>
+                        <li> <q>It is about threads, locks...</q></li>
+                        <li> <q>It is rather difficult </q> </li>
+                        <li> <q>It is hard but necessary </q> </li>
+                        </ul>
+                    </span>
+                    <aside class="notes" data-markdown>
+                        * "It is most about threads, mutexes but I forgot a lot from that..." -> That might be not the bad thing :)
+                    </aside>
+                </section>
+
+                <section>
+                    <span>
+                        <ul>
+                        <li> Concurrency is about <span class="fragment highlight-green">dealing with</span> lots of things at once.</li>
+                        <li> Parallelism is about <span class="fragment highlight-green">doing</span> lots of things at once.</li>
+                        </ul>
+                    </span>
+                    <aside class="notes" data-markdown>
+                        * Concurrency is about structure, parallelism is about execution.
+                        * Concurrency provides a way to structure a solution to solve a problem that may (but not necessarily) be parallelizable.
+                        * Concurrency: when tasks can start, run and complete in  overlapping time periods.
+                        * Parallelism: when two or more tasks execute simultaneously.
+                        * Concurrency is not parallelism, although it enables parallelism. It is first building block to enable parallelism.
+                        * If you have only one processor, your program can still be concurrent but it cannot be parallel.
+                        * On the other hand, a well-written concurrent program might run efficiently in parallel on a multiprocessor. That property could be important...
+                    </aside>
+                    <span class="fragment">
+                        <p>Why do we need concurrency?</p>
+                        <p>Performance through parallelism.</p>
+                    </span>
+                    <span class="fragment">
+                        <small>For more on that in <a href="https://blog.golang.org/concurrency-is-not-parallelism">https://blog.golang.org/concurrency-is-not-parallelism</a> by Rob Pike.</small>
+                    </span>
+                </section>
+
+                <section>
+                    <p>We live in a concurrent world!</p>
+                    <p><q>The Free Lunch Is Over</q> - Herb Sutter, 2004</p>
+                    <img style="width:45%;" src="http://www.gotw.ca/images/CPU.png">
+                    <!-- <img src="https://scs.senecac.on.ca/~gpu610/pages/images/c_batten.png"> -->
+                    <!-- <img src="https://slideplayer.com/slide/12231659/72/images/8/Free+lunch+%E2%80%93+is+over+%EF%81%8C+Transistor+number+grows+%28Moore%E2%80%99s+law%29.jpg"> -->
+                    <small><a href="http://www.gotw.ca/publications/concurrency-ddj.htm"/>http://www.gotw.ca/publications/concurrency-ddj.htm</a></small>
+                    <aside class="notes" data-markdown>
+                        * Historically Performance through faster CPU - Free lunch
+                        * Trend more cores per chip (GPU, etc.)
+                        * Free lunch is over for sequential programs
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Amdahl's law</p>
+                    <img src="http://computerscience.chemeketa.edu/cs160Reader/_images/AmdahlFormula.png">
+                    <aside class="notes" data-markdown>
+                        * Used in parallel computing
+                        * theoretical speedup in latency of the execution of a program in
+                          function of the number of processors executing it.
+                        * The speedup limited by the serial part of the program.
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Amdahl's law</p>
+                    <p> <img src="https://upload.wikimedia.org/wikipedia/commons/e/ea/AmdahlsLaw.svg"> </p>
+                    <p> <small><a href="https://en.wikipedia.org/wiki/Amdahl%27s_law">https://en.wikipedia.org/wiki/Amdahl%27s_law</a></small> </p>
+                    <aside class="notes" data-markdown>
+                        * For example, if 95% of the program can be parallelized,
+                          the theoretical maximum speedup using parallel
+                          computing would be 20 times.
+                        * Scale is logarithmic
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Amdahl's law - linear scale</p>
+                    <p> <img src="images/amdahl_linear_plot.png"> </p>
+                    <aside class="notes" data-markdown>
+                        * Fast goes to maximum speedup
+                        * Amdahl law sucks
+                        * We want to minimize serialized part of our program
+                        * Zoom in and show on 2**8 scale
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Threads</p>
+                    <aside class="notes" data-markdown>
+                        * One of most powerful concept to express concurrency
+                        * We need threads to go faster.
+                        * Kevlin Henney - Too low level "like goto or jump"
+                        * Ulrich Drepper - posix community aim with threads was as a mean for OS
+                          developers to take advantage of parallelism of a
+                          machine, it was not for end users, there should be
+                          other things, more abstract.
+                    </aside>
+                </section>
+                        <!-- * process represent sane OS model, OS is design around -->
+                        <!--   processes (address space, one file descriptor table), -->
+                        <!--   then threads were introduced (shared address space) -->
+
+                <section>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img width="800" height="600" src="images/ithare.png" style="position:absolute;top:0;left:0;"/>
+                        <img width="800" height="600" class="fragment" src="images/ithare_2.png" style="position:absolute;top:0;left:0;" />
+                    </div>
+                    <div style="font-size: 0.3em" class="bottom-right">
+                        <ul>
+                            <li>
+                                <a href="http://ithare.com/infographics-operation-costs-in-cpu-clock-cycles/">
+                                http://ithare.com/infographics-operation-costs-in-cpu-clock-cycles/</a>
+                            </li>
+                            <li>
+                                <a href="https://blog.tsunanet.net/2010/11/how-long-does-it-take-to-make-context.html">
+                                    https://blog.tsunanet.net/2010/11/how-long-does-it-take-to-make-context.html</a>
+                            </li>
+                    </div>
+                    <aside class="notes" data-markdown>
+                        * Oversubsribtion Scalling with threads does not work - high cost of context switch
+
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Raw synchronization primitives</p>
+                    <ul>
+                        <li>Mutex</li>
+                        <li>Atomic</li>
+                        <li>Semaphore</li>
+                        <li>Condition Variable</li>
+                        <li>Memory fence</li>
+                    </ul>
+                    <aside class="notes" data-markdown>
+                        * Probably everybody used them
+                        * Introduced memory model in C++11 (threads, mutex, atomic)
+                        * If used it means you work with threads
+                        * learn first about concurrency
+                        * about controlling threads
+                        * about waiting
+                        * Shifts our thinking about shared and mutable objects
+                        * And as the purpose of threads is to go faster the purpose of synchronisation is to go slower
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Problems with locks:</p>
+                    <ul>
+                        <li>Hard to get right</li>
+                        <li>Cost (data sharing, contention)</li>
+                    </ul>
+                    <aside class="notes" data-markdown>
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Locks - hard to get right</p>
+                    <aside class="notes" data-markdown>
+                        * HUMAN BRAIN - hard to KEEP UP with many conccurent things
+                        * WE make MISTAKES
+                          * forget locking
+                          * wrong loking order
+                          * deadlocks
+                          * typo mistakes
+                          * wasting CPU cycles through contention
+                        <!-- * We don't want to wait (all machines wait at the same speed) -->
+                        * no much we can do here expect FORGET about locking :)
+                        * OS level problem with locks
+                          * The only thing that is communicated by mutex is that threads waits on specific lock
+                          * locking expresses "I am waiting for some set that is protected by this mutex"
+                          * kernel can not get any waiter dependency on locks
+                          * lock is 32bit work only
+                          * kernel does not have any means for more effective thread scheduling
+                          * we need better way to express waiter dependency
+                    </aside>
+                </section>
+
+                <section>
+                    <section data-transition=none>
+                        <p>See the problem?</p>
+                        <pre ><code class="c++" data-trim data-noescape>
+                        void Obj::update() noexcept {
+                            unique_lock<mutex>(m_mutex);
+                            do_the_mutation();
+                        }
+                        </code>
+                        </pre>
+                        <p> <small><a href="https://www.youtube.com/watch?v=lkgszkPnV8g">CppCon 2017: Louis Brandy “Curiously Recurring C++ Bugs at Facebook”</a></small> </p>
+                    </section>
+
+                    <section data-transition=none>
+                        <p>Fixed</p>
+                        <pre ><code class="c++" data-trim data-noescape>
+                        void Obj::update() noexcept {
+                            unique_lock<mutex> g(m_mutex);
+                            do_the_mutation();
+                        }
+                        </code>
+                        </pre>
+                        <p> <small><a href="https://www.youtube.com/watch?v=lkgszkPnV8g">CppCon 2017: Louis Brandy “Curiously Recurring C++ Bugs at Facebook”</a></small> </p>
+                    </section>
+                </section>
+
+                <section>
+                    <p>Programming model with locks</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/locks_programming.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/locks_programming_2.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/locks_programming_3.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/locks_programming_4.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/locks_programming_5.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment step-fade-in-then-out" style="width:50%;" src="https://media.overstockart.com/optimized/cache/data/product_images/MU925-1000x1000.jpg"/>
+                    </div>
+                </section>
+
+                <!-- <section> -->
+                <!--     <p>Do not stop</p> -->
+                <!--     <div style="position:relative; width:800px; height:600px; margin:0 auto;"> -->
+                <!--         <img class="" width="800" height="600" src="images/do_not_stop_1.png" style="position:absolute;top:0;left:0;" /> -->
+                <!--         <img class="fragment" width="800" height="600" src="images/do_not_stop_2.png" style="position:absolute;top:0;left:0;" /> -->
+                <!--         <img class="fragment" width="800" height="600" src="images/do_not_stop_3.png" style="position:absolute;top:0;left:0;" /> -->
+                <!--         <img class="fragment" width="800" height="600" src="images/do_not_stop_4a.png" style="position:absolute;top:0;left:0;" /> -->
+                <!--         <img class="fragment" width="800" height="600" src="images/do_not_stop_4b.png" style="position:absolute;top:0;left:0;" /> -->
+                <!--     </div> -->
+                <!--     <aside class="notes" data-markdown> -->
+                <!--         * We don't want to stop -->
+                <!--         * All computers wait at the same speed. -->
+                <!--         * minimize locks -->
+                <!--         * Goal: Concurrency can be easier with higher level abstractions -->
+                <!--     </aside> -->
+                <!-- </section> -->
+                <!--  -->
+                <section>
+                    <p>Cost of data sharing</p>
+                    <aside class="notes" data-markdown>
+                        * Locks shifts our thinking to shared mutable state by default
+                        * Synchronization overhead is a particular case of data sharing overhead
+                    </aside>
+                </section>
+                        <!-- * Parallelism through fine grained synchronization (data sharing) does not scale</p> -->
+
+                <section>
+                    <img src="images/cost_of_data_sharing.png"/>
+                    <p> <small><a href="https://www.youtube.com/watch?v=9hJkWwHDDxs">CppCon 2016: Fedor Pikus “The speed of concurrency (is lock-free faster?)"</a></small> </p>
+                    <aside class="notes" data-markdown>
+                        * Cost of data sharing - Fedor Pikus, CppCon 2016 - The Speed of Concurrency
+                        * Simple std::atomic increment
+                        * Test finishes after x increments
+                        * Gree line show ideal average time it takes for one icrement
+                        * Wait-free, each thread always make progress
+                        * But runs slower with more threads
+                        * Something is waiting for something else somewhere...
+                        * Lock-free does not mean there is no sharing
+                        * We have changable state and is shared between threads
+                          - because the way we have been thought to program we assume that.
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Data sharing and CPU caches</p>
+                    <img style="width:60%;" src="https://microkerneldude.files.wordpress.com/2015/04/architecture2.png"/>
+                </section>
+
+
+                <section>
+                    <p>Shared (write) operation does not scale</p>
+                    <aside class="notes" data-markdown>
+                        * Shared operation does not scae but is used to make the whole program scale better
+                        * So we need efficient and as few as possible accesses to the same shared variable because that adds the cost
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Synchronisation quadrant</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="" width="800" height="600" src="images/synchronization_quadrant.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment" width="800" height="600" src="images/synchronization_quadrant_2.png" style="position:absolute;top:0;left:0;" />
+                        <img class="fragment" width="800" height="600" src="images/synchronization_quadrant_3.png" style="position:absolute;top:0;left:0;" />
+                    </div>
+                    <small><a href="https://www.youtube.com/watch?v=2yXtZ8x7TXw&t=589s"/>Thinking Outside the Synchronisation Quadrant - Kevlin Henney</a></small>
+                    <aside class="notes" data-markdown>
+                        * Kevlin Henney
+                        * simple quadrant diagram
+                        * 2 axies: shared - unshared, mutable or immutable
+                        * 4 places you code can be
+                        * Only one quadrant needs synchronisation
+                        * It does not mean that there is no synchronization in other quadrants but they are down on the processor level or in library constructs but synchronisation does not overloads you program.
+                        * Most code bases end up in synchronisation quadrant for some reason..
+                        * Historical reason.
+                        * Nice about thread was that fast access to shared
+                          memory is easy to implement (no need to rewrite whole
+                          program) but issues like corruption by other threads
+                          and need of synchronization emerged
+                        * Remember about other quadrants.
+                        * Changable state should be a privilege, not a right.
+                        * We should not explicitly think "I have data that I wish to share"
+                          but rather "There are things to do who do I talk to?"
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System</p>
+                    <aside class="notes" data-markdown>
+                        * Task is a unite of work, often a function, lambda, to be executed on the thread.
+                        * Task system provides thread pool.
+                        * Task is schedule on a thread pool to optimize machine utilization.
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System</p>
+                    <ul>
+                        <li>C++17 standard does not have one</li>
+                        <li>stlab</li>
+                        <li>Folly</li>
+                        <li>TBB (Threading Building Blocks)</li>
+                        <li>Grand Central Dispatch (libdispatch)</li>
+                        <li>HPX</li>
+                        <li>Windows Thread Pool and PPL on Windows only</li>
+                    </ul>
+                    <aside class="notes" data-markdown>
+                        * Should NOT write one
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System</p>
+                    <img src="images/task_system.png" />
+
+                    <aside class="notes" data-markdown>
+                        * improvement over raw primitives
+                        * not recommended
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="" width="800" height="600" src="images/task_system_speed_plot0_label.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment" width="800" height="600" src="images/task_system_speed_plot0_result.png" style="position:absolute;top:0;left:0;"/>
+                    </div>
+                    <aside class="notes" data-markdown>
+                        * How fast, what do you think?
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System - queue per thread</p>
+                    <img src="images/task_system_queue_per_thread.png" />
+
+                    <aside class="notes" data-markdown>
+                        *
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System - queue per thread</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="" width="800" height="600" src="images/task_system_speed_plot1_label.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment" width="800" height="600" src="images/task_system_speed_plot1_result.png" style="position:absolute;top:0;left:0;"/>
+                    </div>
+
+                    <aside class="notes" data-markdown>
+                        *
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System - queue per thread with task stealing</p>
+                    <img src="images/task_system_stealing.png" />
+
+                    <aside class="notes" data-markdown>
+                        *
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Task System - queue per thread with task stealing</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="" width="800" height="600" src="images/task_system_speed_plot2_label.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment" width="800" height="600" src="images/task_system_speed_plot2_result.png" style="position:absolute;top:0;left:0;"/>
+                    </div>
+
+                    <aside class="notes" data-markdown>
+                        *
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Main points from the task system excerise:</p>
+                    <ul>
+                        <li>No blocking</li>
+                        <li>Simple to use (only async)</li>
+                        <li>Enables concurrency</li>
+                    </ul>
+                    <aside class="notes" data-markdown>
+                        * We don't want to block
+                        * Simple interface
+                            * No raw primitives (only queue)
+                            * Abstraction makes it easier
+                        * First build block for better concurrency
+                    </aside>
+                </section>
+
+                <section>
+                    <p>How to create dependencies between tasks?</p>
+                    <img src="images/data_dependencies.png" />
+
+                    <aside class="notes" data-markdown>
+                        * Image is real application
+                        * How to express data dependencies between tasks?
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Future</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_separated.png" style="position:absolute;top:0;left:0;"/>
+                    </div>
+
+                    <aside class="notes" data-markdown>
+                        * Future: mechanism to decouple function from the result
+                        * After function is called result appears magically in the future
+                        * Show simple C++ example
+                           * async returns future
+                        * Problems with the example
+                           * problem with blocking get
+                           * no custom executor
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Future - continuation</p>
+                    <img src="images/future_continuation.png" />
+                </section>
+
+                <section>
+                    <p>Future - join</p>
+                    <img src="images/future_join.png" />
+                    <aside class="notes" data-markdown>
+                        * Two types: when_all, when_any (code example)
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Future - split</p>
+                    <img src="images/future_split.png" />
+                    <aside class="notes" data-markdown>
+                        *
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Future - cancellation</p>
+                    <div style="position:relative; width:800px; height:600px; margin:0 auto;">
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_0.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_1.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_2.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_3.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_4.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_5.png" style="position:absolute;top:0;left:0;"/>
+                        <img class="fragment step-fade-in-then-out" width="800" height="600" src="images/future_cancelation_6.png" style="position:absolute;top:0;left:0;"/>
+                    </div>
+                </section>
+
+                <section>
+                    <p>Promise and Future</p>
+                    <img src="images/promise_future_channel.png"/>
+                    <aside class="notes" data-markdown>
+                        * Promise producer side, Future receiver side
+                        * Size of channel
+                        * But this channel is not persistent, once used feature and promise is gone
+                        * Graph is build and destroyed while executing, app loop need to do this again so builds graph again - not optimal
+                        * If we want to have persisted graph of execution we need something else
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Channels</p>
+                    <img src="https://images.gr-assets.com/books/1299812872l/808812.jpg"/>
+                    <aside class="notes" data-markdown>
+                        * Channels are one model of interprocess communication
+                        * Roots in Tony Hoare book (available online)
+                        * With channels it is possible to realize processing graphs, that can be used for more than one execution
+                        * Go concurrency model was highly influenced by this book
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Channels</p>
+                    <img src="images/channel.png"/>
+                    <aside class="notes" data-markdown>
+                        * Channels consist of a sending and a receiving part.
+                        * Each receiver has an attached process that gets executed when a value is send through.
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Summary</p>
+                    <ul>
+                        <li>Threads, locks are not the only way thinking about concurrency</li>
+                        <li>Shared mutable data does not scale</li>
+                        <li>Higher level abstractions (future, channels, actors) make it easier</li>
+                    </ul>
+
+                </section>
+
+                <section style="text-align: left;">
+                    <p>References</p>
+                    <small>
+                    <ul>
+                        <li>
+                            <a href="https://www.youtube.com/watch?v=zULU6Hhp42w">
+                                Better Code: Concurrency - Sean Parent
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.youtube.com/watch?v=2yXtZ8x7TXw">
+                                Thinking Outside the Synchronisation Quadrant - Kevlin Henney
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.youtube.com/watch?v=jfimI7UC9Pg">
+                                Scalable Parallel Programming Techniques - Ulrich Drepper
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.youtube.com/watch?v=TFETtW86zAc">
+                                Read and write considered harmful - Hubert Matthews
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://gist.github.com/jboner/2841832">
+                                Latency Numbers Every Programmer Should Know
+                            </a>
+                        </li>
+                        <li>
+                            <a href="http://www.gotw.ca/publications/concurrency-ddj.htm">
+                                The Free Lunch Is Over: A Fundamental Turn Toward Concurrency in Software
+                            </a>
+                        </li>
+                    </ul>
+                    </small>
+                </section>
+
+            </div>
+        </div>
+
+        <script src="reveal.js/lib/js/head.min.js"></script>
+        <script src="reveal.js/js/reveal.js"></script>
+
+        <script>
+            // More info about config & dependencies:
+            // - https://github.com/hakimel/reveal.js#configuration
+            // - https://github.com/hakimel/reveal.js#dependencies
+            Reveal.initialize({
+                controls: false,
+                history: true,
+                fragmentInURL: true,
+                dependencies: [
+                    { src: 'reveal.js/plugin/markdown/marked.js' },
+                    { src: 'reveal.js/plugin/markdown/markdown.js' },
+                    { src: 'reveal.js/plugin/notes/notes.js', async: true },
+                    { src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+                ]
+            });
+        </script>
+    </body>
+</html>
