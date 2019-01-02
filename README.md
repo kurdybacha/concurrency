@@ -10,7 +10,7 @@
 1. Install and start reveal.js
     ```console
     git submodule update --init --recursive
-    cd notes
+    cd notes/reveal.js
     npm install
     npm start
     ```
